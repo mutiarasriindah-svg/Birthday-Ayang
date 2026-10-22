@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SECURE TERMINAL - VOUCHER VAULT</title>
+    <style>
+        /* ================= CSS RESET & VARIABLES ================= */
+        :root {
+            --bg-color: #050505;
+            --neon-green: #00ff00;
+            --neon-red: #ff0033;
+            --neon-pink: #ff007f;
+            --neon-blue: #00f3ff;
+            --gray-out: #444444;
+            --font-main: 'Courier New', Courier, monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--neon-green);
+            font-family: var(--font-main);
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            padding: 20px;
+            font-size: 16px;
+        }
+
+        /* ================= CRT SCANLINE EFFECT ================= */
+        body::before {
+            content: " ";
+            display: block;
+            position: fixed;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 999;
+            background-size: 100% 3px, 3px 100%;
+            pointer-events: none; /* Penting: agar tombol tetap bisa diklik */
+        }
+
+        .hidden { display: none !important; }
+        
+        .cursor {
+            display: inline-block;
+            width: 10px;
+            height: 1.2rem;
+            background-color: var(--neon-green);
+            vertical-align: middle;
+            animation: blink 1s step-end infinite;
+            margin-left: 2px;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        .btn {
+            background: transparent;
+            color: var(--neon-green);
+            border: 1px solid var(--neon-green);
+            font-family: var(--font-main);
+            font-size: 1rem;
+            padding: 12px 25px;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            position: relative;
+            z-index: 10;
+            margin-top: 20px;
+        }
+
+        .btn:hover {
+            background: var(--neon-green);
+            color: var(--bg-color);
+            box-shadow: 0 0 15px var(--neon-green);
+        }
+
+        .btn-blink {
+            animation: slow-blink 2s infinite;
+        }
+
+        @keyframes slow-blink {
+            0%, 100% { box-shadow: 0 0 5px var(--neon-green); }
+            50% { box-shadow: 0 0 20px var(--neon-green), inset 0 0 10px var(--neon-green); }
+        }
+
+        /* ================= PHASE 1: BOOT SEQUENCE ================= */
+        #phase1 {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding-bottom: 20px;
+            text-shadow: 0 0 5px var(--neon-green);
+        }
+
+        .log-line {
+            margin-bottom: 5px;
+            word-break: break-all;
+        }
+
+        .access-granted {
+            color: var(--neon-green);
+            font-size: 2.5rem;
+            font-weight: bold;
+            text-align: center;
+            margin-top: 40px;
+            animation: flash-text 0.5s infinite alternate;
+            text-shadow: 0 0 20px var(--neon-green), 0 0 40px var(--neon-green);
+        }
+
+        @keyframes flash-text {
+            from { opacity: 1; }
+            to { opacity: 0.3; }
+        }
+
+        /* ================= PHASE 2: ROMANTIC MESSAGE ================= */
+        #phase2 {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            max-width: 800px;
+            margin: 0 auto;
+            width: 100%;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* ASCII Heart */
+        .ascii-heart {
+            color: var(--neon-pink);
+            font-weight: bold;
+            text-shadow: 0 0 10px var(--neon-pink), 0 0 20px var(--neon-pink);
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 1.1rem;
+            line-height: 1.1;
+            animation: heartbeat 1.5s infinite;
+        }
+
+        @keyframes heartbeat {
+            0%, 100% { transform: scale(1); text-shadow: 0 0 10px var(--neon-pink); }
+            50% { transform: scale(1.05); text-shadow: 0 0 20px var(--neon-pink), 0 0 30px var(--neon-red); }
+        }
+
+        .typing-container {
+            font-size: 1.1rem;
+            white-space: pre-wrap; 
+            line-height: 1.8;
+            margin-bottom: 20px;
+            text-shadow: 0 0 3px rgba(0, 255, 0, 0.5);
+            min-height: 250px;
+            text-align: left;
+            width: 100%;
+            padding: 25px;
+            background: rgba(0, 30, 0, 0.4);
+            border-left: 3px solid var(--neon-green);
+            box-shadow: -5px 0 15px rgba(0, 255, 0, 0.1);
+        }
+
+        /* Floating Digital Hearts */
+        #hearts-container {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 1;
+            overflow: hidden;
+        }
+
+        .floating-heart {
+            position: absolute;
+            bottom: -50px;
+            color: var(--neon-pink);
+            font-weight: bold;
+            text-shadow: 0 0 10px var(--neon-pink);
+            opacity: 0;
+            animation: float-up linear forwards;
+        }
+
+        @keyframes float-up {
+            0% { transform: translateY(0) scale(0.8); opacity: 0; }
+            10% { opacity: 0.8; }
+            80% { opacity: 0.8; }
+            100% { transform: translateY(-100vh) scale(1.3); opacity: 0; }
+        }
+
+        /* ================= PHASE 3: VOUCHER VAULT ================= */
+        #phase3 {
+            width: 100%;
+            max-width: 1100px;
+            margin: 0 auto;
+            padding-bottom: 50px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .vault-header {
+            text-align: center;
+            margin-bottom: 40px;
+            border-bottom: 1px dashed var(--neon-green);
+            padding-bottom: 20px;
+        }
+
+        .vault-header h1 {
+            text-shadow: 0 0 10px var(--neon-blue);
+            color: var(--neon-blue);
+            font-size: 2rem;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .voucher-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+        }
+
+        .voucher-card {
+            border: 1px solid var(--neon-green);
+            background: rgba(0, 20, 0, 0.7);
+            padding: 20px;
+            position: relative;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
+            min-height: 160px;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .voucher-card:hover:not(.redeemed) {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 255, 0, 0.4);
+            background: rgba(0, 255, 0, 0.1);
+        }
+
+        .v-id {
+            font-size: 0.85rem;
+            margin-bottom: 15px;
+            border-bottom: 1px dotted rgba(0, 255, 0, 0.5);
+            padding-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+            color: var(--neon-blue);
+        }
+
+        .v-title {
+            font-weight: bold;
+            font-size: 1.15rem;
+            margin-bottom: 10px;
+            text-shadow: 0 0 5px var(--neon-green);
+            color: #fff;
+        }
+
+        .v-desc {
+            font-size: 0.95rem;
+            flex-grow: 1;
+            opacity: 0.9;
+            color: #ddd;
+        }
+
+        /* Redeemed State */
+        .voucher-card.redeemed {
+            border-color: var(--gray-out);
+            background: transparent;
+            pointer-events: none;
+            box-shadow: none;
+        }
+
+        .voucher-card.redeemed .v-title,
+        .voucher-card.redeemed .v-desc,
+        .voucher-card.redeemed .v-id {
+            color: var(--gray-out);
+            text-decoration: line-through;
+            text-shadow: none;
+        }
+
+        .voucher-card.redeemed::after {
+            content: "REDEEMED";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-15deg);
+            color: var(--neon-red);
+            font-size: 2.8rem;
+            font-weight: bold;
+            border: 5px solid var(--neon-red);
+            padding: 5px 15px;
+            letter-spacing: 5px;
+            background: rgba(0, 0, 0, 0.85);
+            box-shadow: 0 0 20px var(--neon-red) inset, 0 0 30px var(--neon-red);
+            text-shadow: 0 0 10px var(--neon-red);
+            z-index: 5;
+        }
+
+        /* ================= CUSTOM MODAL ================= */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 99999;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-box {
+            background: var(--bg-color);
+            border: 2px solid var(--neon-blue);
+            box-shadow: 0 0 30px rgba(0, 243, 255, 0.4);
+            padding: 30px;
+            max-width: 450px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .modal-title {
+            color: var(--neon-blue);
+            font-weight: bold;
+            margin-bottom: 20px;
+            border-bottom: 1px dashed var(--neon-blue);
+            padding-bottom: 10px;
+            text-shadow: 0 0 8px var(--neon-blue);
+            font-size: 1.3rem;
+        }
+
+        .modal-text {
+            margin-bottom: 30px;
+            line-height: 1.5;
+            color: #fff;
+            font-size: 1.1rem;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        .btn-yes { border-color: var(--neon-red); color: var(--neon-red); }
+        .btn-yes:hover { background: var(--neon-red); color: #000; box-shadow: 0 0 20px var(--neon-red); }
+        
+        .btn-no { border-color: var(--neon-blue); color: var(--neon-blue); }
+        .btn-no:hover { background: var(--neon-blue); color: #000; box-shadow: 0 0 20px var(--neon-blue);}
+
+        @media (max-width: 600px) {
+            .access-granted { font-size: 1.8rem; }
+            .typing-container { font-size: 1rem; padding: 15px; }
+            .vault-header h1 { font-size: 1.5rem; }
+            .voucher-card.redeemed::after { font-size: 2rem; }
+            .ascii-heart { font-size: 0.8rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Container for Floating Hearts -->
+    <div id="hearts-container" class="hidden"></div>
+
+    <!-- PHASE 1: TERMINAL BOOT SEQUENCE -->
+    <div id="phase1">
+        <div id="terminal-output"></div>
+    </div>
+
+    <!-- PHASE 2: ROMANTIC MESSAGE -->
+    <div id="phase2" class="hidden">
+        <pre class="ascii-heart">
+   d8888b.  .d8888b.   
+  8888888888888888888  
+  8888888888888888888  
+   Y888888888888888Y   
+     Y88888888888Y     
+       Y8888888Y       
+         Y888Y         
+           Y           
+        </pre>
+        <div class="typing-container">
+            <span id="typed-text"></span><span class="cursor"></span>
+        </div>
+        <div>
+            <button class="btn btn-blink hidden" id="btn-vault" onclick="goToPhase3()">[ ACCESS VOUCHER VAULT ]</button>
+        </div>
+    </div>
+
+    <!-- PHASE 3: VOUCHER VAULT -->
+    <div id="phase3" class="hidden">
+        <div class="vault-header">
+            <h1>>> SECURE_PAYLOAD.exe</h1>
+            <p style="opacity: 0.8;">Target ID: Favorite Human | Status: CONNECTION_SECURE_5_YEARS</p>
+        </div>
+        <div class="voucher-grid" id="voucher-grid">
+            <!-- Vouchers injected by JS -->
+        </div>
+    </div>
+
+    <!-- CUSTOM MODAL -->
+    <div class="modal-overlay hidden" id="custom-modal">
+        <div class="modal-box">
+            <div class="modal-title">[ SYSTEM OVERRIDE CONFIRMATION ]</div>
+            <div class="modal-text">
+                > TARGET PAYLOAD ACQUIRED.<br>
+                > Execute payload & redeem voucher?
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-yes" onclick="confirmRedeem()">[ YES ]</button>
+                <button class="btn btn-no" onclick="closeModal()">[ NO ]</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* ================= DATA ================= */
+        const romanticText = `Kalau hubungan kita adalah sebuah sistem, aku tahu bahwa kita tidak selalu berjalan tanpa error. Ada saat-saat ketika kita salah memahami satu sama lain, ada hari yang berat, dan ada hal yang perlu kita perbaiki bersama.\n\nTapi setelah lebih dari lima tahun, aku masih ingin memilih koneksi ini. Bukan karena semuanya selalu sempurna, tetapi karena kamu adalah seseorang yang tetap ingin aku ajak menjalani hari-hari berikutnya.\n\nSemoga di usia barumu, semua impianmu menemukan jalannya, pekerjaanmu semakin berkembang, dan kamu selalu punya alasan untuk tersenyum.\n\nHappy Birthday, sayang. Our connection means more to me than words can explain. ❤️`;
+
+        const vouchersData = [
+            { title: '1. HARDWARE UPGRADE', desc: 'Upgrade tech/gadget pilihanmu. Max budget: Rp 500.000. Approved!' },
+            { title: '2. DINNER DATE PROTOCOL', desc: 'Bypass perdebatan "terserah". Kamu bebas tentukan menu & lokasi.' },
+            { title: '3. DATA BACKUP (DEEP TALK)', desc: 'Kapasitas storage tak terbatas untuk dengerin curhatmu sambil ngopi.' },
+            { title: '4. MOVIE DATE ACCESS', desc: 'Akses penuh nonton film di bioskop pilihanmu tanpa interupsi.' },
+            { title: '5. CO-OP GAMING DATE', desc: 'Mode Co-op diaktifkan! Mabar seharian penuh tanpa ada yang ngambek.' },
+            { title: '6. SUDO PRIVILEGE (FREE REQ)', desc: 'Hak akses root. 1x bebas minta apa saja (S&K berlaku).' },
+            { title: '7. 5+ YEARS COMPATIBILITY', desc: 'Quality time spesial merayakan hari jadi kita dan ulang tahunmu.' },
+            { title: '8. SHORT TRIP EXECUTION', desc: 'Melarikan diri dari server sejenak. Jalan-jalan berdua refresh otak.' },
+            { title: '9. CAFE DATE INITIATED', desc: 'Santai di cafe favorit, ngobrol ringan, ngopi, atau sekadar kerja bareng.' },
+            { title: '10. SANDBOX MODE (ME TIME)', desc: 'Waktu bebas untukmu sendiri tanpa gangguan, notifikasi, atau spam chat.' }
+        ];
+
+        /* ================= HELPER FUNCTIONS ================= */
+        const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+        const randomInt = (min, max) => Math.floor(Math.random() * (max - min + 1) + min);
+
+        /* ================= PHASE 1 LOGIC ================= */
+        async function runBootSequence() {
+            const terminal = document.getElementById('terminal-output');
+            
+            const bootLogs = [
+                "Initiating kernel boot sequence... [OK]",
+                "Loading security modules... [OK]",
+                "Mounting secure file systems... [OK]",
+                "Establishing encrypted connection to target_heart... [OK]",
+                "Verifying 5-year relationship certificates... [PASS]",
+                "Warning: Encrypted payload detected in Birthday Sector.",
+                "Bypassing standard firewall protocols... [OK]",
+                "Disabling IDS... [DONE]",
+                "Injecting decryption keys into memory... [SUCCESS]",
+                "Decrypting birthday payload..."
+            ];
+
+            for (let i = 0; i < bootLogs.length; i++) {
+                const line = document.createElement('div');
+                line.className = 'log-line';
+                line.innerText = `> ${bootLogs[i]}`;
+                terminal.appendChild(line);
+                window.scrollTo(0, document.body.scrollHeight);
+                await sleep(randomInt(300, 700));
+            }
+
+            // Fake Loading Bar
+            const loadingLine = document.createElement('div');
+            loadingLine.className = 'log-line';
+            terminal.appendChild(loadingLine);
+            
+            let bar = "";
+            for(let i = 1; i <= 20; i++) {
+                bar += "█";
+                let percentage = i * 5;
+                loadingLine.innerText = `> [${bar.padEnd(20, ' ')}] ${percentage}%`;
+                await sleep(randomInt(40, 90));
+            }
+
+            await sleep(500);
+
+            // Access Granted
+            const granted = document.createElement('div');
+            granted.className = 'access-granted';
+            granted.innerText = "ACCESS GRANTED";
+            terminal.appendChild(granted);
+            window.scrollTo(0, document.body.scrollHeight);
+
+            // Transition to Phase 2
+            await sleep(2200);
+            document.getElementById('phase1').classList.add('hidden');
+            document.getElementById('phase2').classList.remove('hidden');
+            document.getElementById('hearts-container').classList.remove('hidden');
+            
+            startFloatingHearts();
+            await sleep(1000);
+            typeWriter();
+        }
+
+        /* ================= PHASE 2 LOGIC (Hearts & Typing) ================= */
+        let typeIndex = 0;
+        let heartInterval;
+        
+        function typeWriter() {
+            if (typeIndex < romanticText.length) {
+                document.getElementById('typed-text').textContent += romanticText.charAt(typeIndex);
+                typeIndex++;
+                let speed = randomInt(30, 65); 
+                setTimeout(typeWriter, speed);
+            } else {
+                setTimeout(() => {
+                    document.getElementById('btn-vault').classList.remove('hidden');
+                }, 600);
+            }
+        }
+
+        function createHeart() {
+            const container = document.getElementById('hearts-container');
+            const heart = document.createElement('div');
+            heart.className = 'floating-heart';
+            heart.innerText = '<3';
+            
+            heart.style.left = Math.random() * 100 + 'vw';
+            const duration = randomInt(4000, 7000); 
+            heart.style.animationDuration = duration + 'ms';
+            heart.style.fontSize = randomInt(1, 2.5) + 'rem';
+            
+            container.appendChild(heart);
+
+            setTimeout(() => {
+                heart.remove();
+            }, duration);
+        }
+
+        function startFloatingHearts() {
+            heartInterval = setInterval(createHeart, 350);
+        }
+
+        /* ================= PHASE 3 LOGIC ================= */
+        function goToPhase3() {
+            document.getElementById('phase2').classList.add('hidden');
+            document.getElementById('phase3').classList.remove('hidden');
+            renderVouchers();
+            window.scrollTo(0, 0);
+        }
+
+        function renderVouchers() {
+            const grid = document.getElementById('voucher-grid');
+            grid.innerHTML = ''; 
+            
+            vouchersData.forEach((v, index) => {
+                const id = (index + 1).toString().padStart(2, '0');
+                const card = document.createElement('div');
+                card.className = 'voucher-card';
+                card.id = `v-card-${index}`;
+                card.onclick = () => openModal(index);
+
+                card.innerHTML = `
+                    <div class="v-id">
+                        <span>SYS_ID: ${id}</span>
+                        <span>[ EXECUTE ]</span>
+                    </div>
+                    <div class="v-title">> ${v.title}</div>
+                    <div class="v-desc">${v.desc}</div>
+                `;
+                
+                grid.appendChild(card);
+            });
+        }
+
+        /* ================= MODAL LOGIC ================= */
+        let activeVoucherId = null;
+
+        function openModal(index) {
+            const card = document.getElementById(`v-card-${index}`);
+            if (card.classList.contains('redeemed')) return; 
+
+            activeVoucherId = index;
+            document.getElementById('custom-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('custom-modal').classList.add('hidden');
+            activeVoucherId = null;
+        }
+
+        function confirmRedeem() {
+            if (activeVoucherId !== null) {
+                const card = document.getElementById(`v-card-${activeVoucherId}`);
+                card.classList.add('redeemed');
+                
+                const statusSpan = card.querySelector('.v-id span:last-child');
+                if(statusSpan) {
+                    statusSpan.textContent = '[ REDEEMED ]';
+                }
+            }
+            closeModal();
+        }
+
+        /* ================= INITIALIZE ================= */
+        window.onload = () => {
+            runBootSequence();
+        };
+    </script>
+</body>
+</html>
